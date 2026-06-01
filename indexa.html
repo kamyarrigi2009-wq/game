@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Turbo Track - Fixed Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body {
+            background-color: #05070a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            height: 100vh;
+            background: #0f1319;
+            overflow: hidden;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #topBar {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            padding: 0 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 6;
+            pointer-events: none;
+        }
+        #scoreBoard {
+            color: #ffffff;
+            font-size: 11px; 
+            font-weight: 800;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+            background: rgba(15, 21, 32, 0.88);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+            border-radius: 10px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            gap: 14px; 
+            padding: 8px 14px; 
+            flex-grow: 1;
+        }
+        .sb-item {
+            white-space: nowrap;
+        }
+        .pause-btn {
+            padding: 7px 15px;
+            font-size: 11px;
+            font-weight: 800;
+            color: #ffffff;
+            background: rgba(15, 21, 32, 0.9);
+            border: 1px solid #00e5ff;
+            border-radius: 10px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+            margin-left: 10px; 
+            white-space: nowrap;
+        }
+
+        #controls {
+            display: flex;
+            justify-content: center;
+            gap: 80px;
+            align-items: center;
+            width: 100%;
+            position: absolute;
+            bottom: 110px; 
+            padding: 0 25px;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .btn {
+            width: 84px;
+            height: 84px;
+            border: 2px solid rgba(255, 255, 255, 0.25);
+            border-radius: 50%;
+            color: white;
+            font-size: 32px;
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            cursor: pointer;
+            outline: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .screen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        #welcomeScreen { background: #07090e; }
+        .welcome-title {
+            color: #00e5ff;
+            font-size: 36px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+            text-shadow: 0 0 25px rgba(0, 229, 255, 0.5);
+        }
+        
+        #gameOverScreen { background: rgba(7, 9, 14, 0.96); display: none; }
+        .game-over-title {
+            color: #ff2222;
+            font-size: 42px;
+            font-weight: 900;
+            margin-bottom: 40px;
+            text-shadow: 0 0 25px rgba(255, 34, 34, 0.5);
+        }
+        
+        .menu-btn {
+            padding: 15px 50px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #ffffff;
+            background: #11151d;
+            border: 2px solid #00e5ff;
+            border-radius: 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        #restartBtn { border-color: #ff2222; }
+
+        #countdownOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(5, 7, 10, 0.85);
+            z-index: 9;
+        }
+        #countdownText {
+            font-size: 280px; 
+            font-weight: 900;
+            color: #facc15; 
+            text-shadow: 0 0 60px rgba(250, 204, 21, 0.5), 0 4px 20px rgba(0,0,0,0.6);
+            opacity: 0;
+            transform: scale(1.7);
+            transition: transform 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.75s ease-out;
+        }
+        #countdownText.animate {
+            transform: scale(0.95);
+            opacity: 1;
+        }
+
+        #rewardToast {
+            position: absolute;
+            top: 95px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.85);
+            background: #facc15;
+            color: #000000;
+            padding: 14px 24px;
+            font-size: 15px;
+            font-weight: 900;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(250, 204, 21, 0.5);
+            z-index: 8;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            width: 88%;
+            direction: rtl;
+        }
+        #rewardToast.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="topBar">
+        <div id="scoreBoard">
+            <span class="sb-item" id="sbPass">PASS: 0/10</span>
+            <span class="sb-item" id="sbScore">SCORE: 0</span>
+            <span class="sb-item" id="sbStage">STAGE: 1</span>
+        </div>
+        <button id="pauseBtn" class="pause-btn">Pause</button>
+    </div>
+
+    <div id="rewardToast">جایزه جدید!</div>
+    
+    <div id="controls">
+        <button id="btnLeft" class="btn">◀</button>
+        <button id="btnRight" class="btn">▶</button>
+    </div>
+
+    <div id="welcomeScreen" class="screen-overlay">
+        <div class="welcome-title">TURBO TRACK</div>
+        <button id="startBtn" class="menu-btn">Start Race</button>
+    </div>
+
+    <div id="gameOverScreen" class="screen-overlay">
+        <div class="game-over-title">GAME OVER</div>
+        <button id="restartBtn" class="menu-btn">Race Again</button>
+    </div>
+
+    <div id="countdownOverlay">
+        <div id="countdownText">3</div>
+    </div>
+</div>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+// بهبود عملکرد رندرینگ
+ctx.imageSmoothingEnabled = false;
+
+const welcomeScreen = document.getElementById('welcomeScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const countdownOverlay = document.getElementById('countdownOverlay');
+const countdownText = document.getElementById('countdownText');
+const startBtn = document.getElementById('startBtn');
+const restartBtn = document.getElementById('restartBtn');
+const pauseBtn = document.getElementById('pauseBtn');
+
+const sbPass = document.getElementById('sbPass');
+const sbScore = document.getElementById('sbScore');
+const sbStage = document.getElementById('sbStage');
+const rewardToast = document.getElementById('rewardToast');
+
+function resizeCanvas() {
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+}
+resizeCanvas();
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let musicInterval = null;
+let musicStep = 0;
+
+const luxuryMelody = [
+    293, 329, 349, 440, 392, 349, 329, 0,
+    349, 392, 440, 523, 494, 440, 392, 0
+];
+
+function playMusicNode() {
+    if (!isPlaying || isPaused) return;
+    const freq = luxuryMelody[musicStep % luxuryMelody.length];
+    musicStep++;
+    if (freq === 0) return;
+    
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    
+    osc.type = 'sine'; 
+    osc.frequency.setValueAtTime(freq, now);
+    
+    gain.gain.setValueAtTime(0.18, now); 
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+    
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.23);
+}
+
+function startMusic() { stopMusic(); musicStep = 0; musicInterval = setInterval(playMusicNode, 145); } 
+function stopMusic() { if (musicInterval) { clearInterval(musicInterval); musicInterval = null; } }
+
+function playClickSound() {
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(850, now);
+    gain.gain.setValueAtTime(0.06, now); 
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.03);
+}
+
+function playMarioDeathSound() {
+    const now = audioCtx.currentTime;
+    const mNotes = [987, 698, 698, 659, 587, 523];
+    const timings = [0.0, 0.04, 0.08, 0.12, 0.16, 0.20]; 
+    const durations = [0.03, 0.03, 0.03, 0.03, 0.03, 0.07]; 
+
+    mNotes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = 'triangle'; 
+        osc.frequency.setValueAtTime(freq, now + timings[idx]);
+        
+        gain.gain.setValueAtTime(0.28, now + timings[idx]); 
+        gain.gain.exponentialRampToValueAtTime(0.002, now + timings[idx] + durations[idx]);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + timings[idx]);
+        osc.stop(now + timings[idx] + durations[idx] + 0.01);
+    });
+}
+
+function playBeep() {
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.11);
+}
+
+function playRewardSound() {
+    const now = audioCtx.currentTime;
+    [523, 659, 784, 987].forEach((f, i) => {
+        const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+        osc.frequency.setValueAtTime(f, now + i*0.05); gain.gain.setValueAtTime(0.15, now + i*0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + i*0.05 + 0.08);
+        osc.connect(gain); gain.connect(audioCtx.destination); osc.start(now + i*0.05); osc.stop(now + i*0.05 + 0.09);
+    });
+}
+
+const stageJobs = [
+    { key: 'taxi', name: 'TAXI', color: '%23facc15', type: 'STANDARD' },
+    { key: 'police', name: 'POLICE', color: '%231e293b', type: 'SPEED_OBSTACLE' }, 
+    { key: 'ambulance', name: 'AMBU', color: '%23f8fafc', type: 'NEW_COLOR' },     
+    { key: 'truck', name: 'TRUCK', color: '%230284c7', type: 'BIG_SIZE' },       
+    { key: 'fire', name: 'FIRE', color: '%23dc2626', type: 'CHAOS' }             
+];
+
+function buildVehicleSvg(name, baseColor, isPlayer = false) {
+    const tailLightColor = isPlayer ? '%23ff2222' : '%23ff3300';
+    const glassColor = 'rgba(15,23,42,0.85)';
+    
+    return `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 90 130'>
+    <rect x='6' y='10' width='78' height='114' rx='22' fill='black' opacity='0.6' filter='blur(6px)'/>
+    
+    <rect x='0' y='20' width='10' height='22' rx='6' fill='%230f1319'/>
+    <rect x='2' y='23' width='6' height='16' rx='2' fill='%2394a3b8' opacity='0.5'/>
+    <rect x='80' y='20' width='10' height='22' rx='6' fill='%230f1319'/>
+    <rect x='82' y='23' width='6' height='16' rx='2' fill='%2394a3b8' opacity='0.5'/>
+    <rect x='0' y='92' width='10' height='22' rx='6' fill='%230f1319'/>
+    <rect x='2' y='95' width='6' height='16' rx='2' fill='%2394a3b8' opacity='0.5'/>
+    <rect x='80' y='92' width='10' height='22' rx='6' fill='%230f1319'/>
+    <rect x='82' y='95' width='6' height='16' rx='2' fill='%2394a3b8' opacity='0.5'/>
+    
+    <path d='M14,35 C14,16 24,6 45,6 C66,6 76,16 76,35 L78,96 C78,112 70,122 45,122 C20,122 12,112 12,96 Z' fill='${baseColor}' stroke='%23090d16' stroke-width='2'/>
+    
+    <path d='M25,8 C32,26 36,36 45,36 C54,36 58,26 65,8' fill='none' stroke='%23000000' stroke-width='2' opacity='0.25'/>
+    <rect x='33' y='10' width='24' height='4' rx='2' fill='%231e293b' opacity='0.6'/>
+    
+    <path d='M20,44 C22,34 30,30 45,30 C60,30 68,34 70,44 L72,74 C72,84 66,88 45,88 C24,88 18,84 18,74 Z' fill='${glassColor}' stroke='%230f172a' stroke-width='1.5'/>
+    <path d='M24,42 C26,36 32,34 45,34 C50,34 52,36 54,40' fill='none' stroke='%23ffffff' stroke-width='2' opacity='0.25' stroke-linecap='round'/>
+    <path d='M22,50 L26,78' stroke='%23ffffff' stroke-width='1' opacity='0.15'/>
+    
+    <path d='M15,16 Q24,14 28,24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round'/>
+    <path d='M75,16 Q66,14 62,24' fill='none' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='round'/>
+    
+    <rect x='8' y='110' width='74' height='6' rx='3' fill='%2311151d' stroke='%23000000' stroke-width='1'/>
+    <rect x='14' y='104' width='6' height='8' fill='%2311151d'/>
+    <rect x='70' y='104' width='6' height='8' fill='%2311151d'/>
+    
+    <rect x='16' y='116' width='16' height='3' rx='1' fill='${tailLightColor}'/>
+    <rect x='58' y='116' width='16' height='3' rx='1' fill='${tailLightColor}'/>
+    
+    <rect x='32' y='94' width='26' height='10' rx='2' fill='%231e293b' opacity='0.7'/>
+    <line x1='36' y1='97' x2='54' y2='97' stroke='%230f172a' stroke-width='1.5'/>
+    <line x1='36' y1='101' x2='54' y2='101' stroke='%230f172a' stroke-width='1.5'/>
+    
+    <text x='45' y='64' font-family='-apple-system, sans-serif' font-size='8.5' font-weight='900' fill='%23ffffff' opacity='0.85' text-anchor='middle' letter-spacing='1'>${name}</text>
+    </svg>`;
+}
+
+let score = 0;
+let currentStageIndex = 0; 
+let passedCarsCount = 0; 
+let isPlaying = false;
+let isPaused = false; 
+let lastTime = 0;
+let roadLinesY = 0;
+let enemySpawnTimer = 0;
+let enemies = [];
+let particles = [];
+let sceneryItems = [];
+let lastSpawnLane = -1; 
+
+// تغییر موقعیت ماشین به 520 برای پایین‌تر آمدن
+const player = {
+    x: 250, y: 520, 
+    width: 60, height: 96, 
+    speed: 460, 
+    movingLeft: false, movingRight: false,
+    img: new Image()
+};
+player.img.src = buildVehicleSvg('YOU', '%2300e5ff', true);
+
+const enemyImageCache = {};
+function reloadCache() {
+    stageJobs.forEach(job => {
+        let targetColor = job.color;
+        if (currentStageIndex === 2) targetColor = '%23c084fc'; 
+        
+        if (!enemyImageCache[job.key + '_' + currentStageIndex]) {
+            const img = new Image();
+            img.src = buildVehicleSvg(job.name, targetColor);
+            enemyImageCache[job.key + '_' + currentStageIndex] = img;
+        }
+    });
+}
+reloadCache();
+
+function updateScoreUI() {
+    sbPass.innerText = `PASS: ${passedCarsCount}/10`;
+    sbScore.innerText = `SCORE: ${score}`;
+    sbStage.innerText = `STAGE: ${currentStageIndex + 1}`;
+}
+
+function checkStageProgression() {
+    passedCarsCount++;
+    
+    if (passedCarsCount >= 10) {
+        passedCarsCount = 0;
+        
+        if (currentStageIndex < stageJobs.length - 1) {
+            currentStageIndex++;
+            reloadCache();
+            showRewardNotification("تبریک! شما جایزه خفن این مرحله رو برنده شدید! 🔥");
+        } else {
+            currentStageIndex = 0; 
+            reloadCache();
+            showRewardNotification("تبریک! شما جایزه خفن این مرحله رو برنده شدید! 🔥");
+        }
+    }
+    updateScoreUI();
+}
+
+function showRewardNotification(text) {
+    rewardToast.innerText = text;
+    rewardToast.classList.add('show');
+    playRewardSound();
+    setTimeout(() => { rewardToast.classList.remove('show'); }, 3400);
+}
+
+function initScenery() {
+    sceneryItems = [];
+    for (let y = -100; y < canvas.height + 100; y += 120) {
+        sceneryItems.push({ x: canvas.width * 0.035, y: y });
+        sceneryItems.push({ x: canvas.width * 0.945, y: y + 60 });
+    }
+}
+
+function updateAndDrawScenery(speed, dt) {
+    ctx.fillStyle = '#102219';
+    ctx.fillRect(0, 0, canvas.width * 0.08, canvas.height);
+    ctx.fillRect(canvas.width * 0.92, 0, canvas.width * 0.08, canvas.height);
+
+    const len = sceneryItems.length;
+    for(let i=0; i<len; i++) {
+        const item = sceneryItems[i];
+        if (isPlaying && !isPaused) item.y += speed * dt;
+        if (item.y > canvas.height + 40) item.y = -40;
+
+        ctx.fillStyle = '#163a22';
+        ctx.beginPath(); ctx.moveTo(item.x, item.y + 10); ctx.lineTo(item.x - 9, item.y + 28); ctx.lineTo(item.x + 9, item.y + 28); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(item.x, item.y); ctx.lineTo(item.x - 6, item.y + 15); ctx.lineTo(item.x + 6, item.y + 15); ctx.closePath(); ctx.fill();
+    }
+}
+
+class ExplodeParticle {
+    constructor(x, y, color) {
+        this.x = x; this.y = y; this.color = color;
+        this.radius = Math.random() * 2.5 + 1;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 200 + 100;
+        this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+        this.alpha = 1;
+    }
+    update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.alpha -= 1.5 * dt; }
+    draw() {
+        ctx.save(); ctx.globalAlpha = this.alpha; ctx.fillStyle = this.color;
+        ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    }
+}
+
+class EnemyCar {
+    constructor() {
+        this.jobSpec = stageJobs[currentStageIndex];
+        
+        if (this.jobSpec.type === 'BIG_SIZE') {
+            this.width = 68;
+            this.height = 108;
+        } else {
+            this.width = 60;
+            this.height = 96;
+        }
+        
+        const lanes = [canvas.width * 0.23, canvas.width * 0.5, canvas.width * 0.77];
+        let targetLaneIndex = Math.floor(Math.random() * lanes.length);
+        
+        if (targetLaneIndex === lastSpawnLane) {
+            targetLaneIndex = (targetLaneIndex + 1) % lanes.length;
+        }
+        lastSpawnLane = targetLaneIndex;
+        
+        this.x = lanes[targetLaneIndex];
+        this.y = -130;
+        
+        this.speed = 490 + (currentStageIndex * 115); 
+        this.passed = false;
+        this.img = enemyImageCache[this.jobSpec.key + '_' + currentStageIndex];
+    }
+    update(dt) { this.y += this.speed * dt; }
+    draw() {
+        if(this.img && this.img.complete) {
+            ctx.drawImage(this.img, this.x - this.width / 2, this.y - this.height / 2, this.width, this.height);
+        }
+    }
+}
+
+function handleEnemies(dt) {
+    if (!isPaused) enemySpawnTimer += dt;
+    
+    let currentType = stageJobs[currentStageIndex].type;
+    let baseInterval = 0.9;
+    if (currentType === 'SPEED_OBSTACLE' || currentType === 'CHAOS') {
+        baseInterval = 0.44; 
+    } else {
+        baseInterval = 0.82 - (currentStageIndex * 0.08);
+    }
+    
+    const spawnInterval = Math.max(0.32, baseInterval);
+    
+    if (enemySpawnTimer > spawnInterval && !isPaused) {
+        enemies.push(new EnemyCar());
+        enemySpawnTimer = 0;
+    }
+
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        if (!isPaused) enemies[i].update(dt);
+        enemies[i].draw();
+
+        if (!enemies[i].passed && enemies[i].y > player.y + player.height / 2) {
+            enemies[i].passed = true;
+            score += 25;
+            checkStageProgression();
+        }
+
+        if (enemies[i].y > canvas.height + 130) {
+            enemies.splice(i, 1);
+            continue;
+        }
+
+        if (intersects(player.x, player.y, player.width, player.height, enemies[i].x, enemies[i].y, enemies[i].width, enemies[i].height)) {
+            for(let p=0; p<15; p++) particles.push(new ExplodeParticle(player.x, player.y, '#00e5ff'));
+            for(let p=0; p<15; p++) particles.push(new ExplodeParticle(enemies[i].x, enemies[i].y, '#ff3333'));
+            gameOver(); 
+            return;
+        }
+    }
+}
+
+function intersects(x1, y1, w1, h1, x2, y2, w2, h2) {
+    return x1 - w1/2.4 < x2 + w2/2.4 && x1 + w1/2.4 > x2 - w2/2.4 && y1 - h1/2.4 < y2 + h2/2.4 && y1 + h1/2.4 > y2 - h2/2.4;
+}
+
+function drawRoad(dt) {
+    ctx.fillStyle = '#171c24';
+    ctx.fillRect(canvas.width * 0.08, 0, canvas.width * 0.84, canvas.height);
+
+    const leftLimit = canvas.width * 0.08;
+    const rightLimit = canvas.width * 0.92 - 6;
+    
+    const currentRoadSpeed = 520 + (currentStageIndex * 115);
+
+    updateAndDrawScenery(currentRoadSpeed, dt);
+
+    ctx.fillStyle = '#f59e0b';
+    ctx.fillRect(leftLimit, 0, 6, canvas.height);
+    ctx.fillRect(rightLimit, 0, 6, canvas.height);
+
+    if (isPlaying && !isPaused) {
+        if (player.x - player.width / 2 <= leftLimit + 6 || player.x + player.width / 2 >= rightLimit) {
+            gameOver();
+            return;
+        }
+    }
+
+    ctx.fillStyle = '#ffffff';
+    if (!isPaused) roadLinesY = (roadLinesY + currentRoadSpeed * dt) % 70;
+
+    for (let y = roadLinesY - 70; y < canvas.height; y += 70) {
+        ctx.fillRect(canvas.width * 0.38 - 1.5, y, 3, 35);
+        ctx.fillRect(canvas.width * 0.62 - 1.5, y, 3, 35);
+    }
+}
+
+function startCountdown() {
+    welcomeScreen.style.display = 'none';
+    gameOverScreen.style.display = 'none';
+    pauseBtn.style.display = 'none';
+    countdownOverlay.style.display = 'flex';
+    
+    let states = ['3', '2', '1'];
+    let current = 0;
+
+    function nextTick() {
+        if (current < states.length) {
+            countdownText.innerText = states[current];
+            countdownText.classList.remove('animate');
+            void countdownText.offsetWidth; 
+            countdownText.classList.add('animate');
+            current++;
+            setTimeout(nextTick, 850);
+        } else {
+            countdownOverlay.style.display = 'none';
+            playBeep();
+            isPlaying = true; isPaused = false;
+            pauseBtn.innerText = "Pause"; pauseBtn.style.display = 'block';
+            lastTime = performance.now();
+            startMusic(); 
+            requestAnimationFrame(loop);
+        }
+    }
+    nextTick();
+}
+
+pauseBtn.addEventListener('click', () => {
+    isPaused = !isPaused;
+    pauseBtn.innerText = isPaused ? "Resume" : "Pause";
+    if (!isPaused) { lastTime = performance.now(); requestAnimationFrame(loop); }
+});
+
+function gameOver() { 
+    isPlaying = false; 
+    pauseBtn.style.display = 'none'; 
+    stopMusic(); 
+    setTimeout(() => { playMarioDeathSound(); }, 180);
+    gameOverScreen.style.display = 'flex'; 
+}
+
+function resetGame() {
+    if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+    score = 0; currentStageIndex = 0; passedCarsCount = 0; lastSpawnLane = -1;
+    reloadCache();
+    updateScoreUI();
+    
+    resizeCanvas();
+    player.x = canvas.width / 2; player.y = 520; 
+    enemies = []; particles = []; enemySpawnTimer = -0.1;
+    initScenery();
+    startCountdown();
+}
+
+function loop(currentTime) {
+    if (!isPlaying || isPaused) return;
+
+    let dt = (currentTime - lastTime) / 1000;
+    // محدود کردن حداکثر دلتا برای جلوگیری از لگ در تب‌های پس‌زمینه
+    if (dt > 0.05) dt = 0.05; 
+    lastTime = currentTime;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawRoad(dt);
+
+    if (isPlaying && !isPaused) {
+        if (player.movingLeft) player.x -= player.speed * dt;
+        if (player.movingRight) player.x += player.speed * dt;
+    }
+
+    if(player.img.complete) {
+        ctx.drawImage(player.img, player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
+    }
+
+    for (let i = particles.length - 1; i >= 0; i--) {
+        particles[i].update(dt); particles[i].draw();
+        if (particles[i].alpha <= 0) particles.splice(i, 1);
+    }
+
+    handleEnemies(dt);
+    if (isPlaying && !isPaused) requestAnimationFrame(loop);
+}
+
+const btnLeft = document.getElementById('btnLeft');
+const btnRight = document.getElementById('btnRight');
+
+btnLeft.addEventListener('mousedown', () => { if(!isPaused) { player.movingLeft = true; playClickSound(); } });
+btnLeft.addEventListener('mouseup', () => player.movingLeft = false);
+btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); if(!isPaused) { player.movingLeft = true; playClickSound(); } });
+btnLeft.addEventListener('touchend', () => player.movingLeft = false);
+
+btnRight.addEventListener('mousedown', () => { if(!isPaused) { player.movingRight = true; playClickSound(); } });
+btnRight.addEventListener('mouseup', () => player.movingRight = false);
+btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); if(!isPaused) { player.movingRight = true; playClickSound(); } });
+btnRight.addEventListener('touchend', () => player.movingRight = false);
+
+startBtn.addEventListener('click', resetGame);
+restartBtn.addEventListener('click', resetGame);
+
+window.addEventListener('load', () => {
+    resizeCanvas();
+    player.x = canvas.width / 2; player.y = 520;
+    initScenery();
+});
+</script>
+
+</body>
+</html>
